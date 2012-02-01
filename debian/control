@@ -1,0 +1,19 @@
+Source: mogilefs-network
+Section: perl
+Priority: optional
+Maintainer: Krzysztof Wilczynski <krzysztof.wilczynski@linux.com>
+Build-Depends-Indep: debhelper (>= 4.1.40), perl (>= 5.6.0-16), libnet-netmask-perl, libnet-patricia-perl, mogilefsd
+Standards-Version: 3.9.1
+
+Package: mogilefs-network
+Essential: no
+Architecture: all
+Depends: ${perl:Depends}, libnet-netmask-perl, libnet-patricia-perl, mogilefsd
+Provides: mogilefs-network
+Homepage: http://www.mogilefs.org/
+Suggests: mogilefs-utils
+Description: MogileFS Server class for representing networks based on host IPs.
+  This collection of modules adds multiple network awareness to the MogileFS
+  server. It provides two replication policies, "MultipleNetworks" and
+  "HostsPerNetwork"; and also provides a plug-in "ZoneLocal" that causes
+  queries to be returned in a prioritized order based on locality of storage.
