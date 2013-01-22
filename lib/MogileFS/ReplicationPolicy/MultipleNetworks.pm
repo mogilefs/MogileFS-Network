@@ -213,22 +213,25 @@ sub unique_hosts_and_networks {
         my @zones = split(/\s*,\s*/,MogileFS::Config->server_setting("network_zones"));
 
         foreach my $zone (@zones) {
-            my $netmask = MogileFS::Config->server_setting("zone_".$zone);
+            my $netmasks = MogileFS::Config->server_setting("zone_" . $zone);
 
-            if (not $netmask) {
-                warn "couldn't find network_zone <<zone_".$zone.">> check your server settings";
+            if (not $netmasks) {
+                warn "couldn't find network_zone <<zone_" . $zone
+                  . ">> check your server settings";
                 next;
             }
 
-            if ($cache{$netmask}) {
-                warn "duplicate netmask <$netmask> in network zones. check your server settings";
-            }
+            foreach my $netmask (split /\s*,\s*/, $netmasks) {
+                if ($cache{$netmask}) {
+                    warn "duplicate netmask <$netmask> in network zones. check your server settings";
+                }
 
-            $cache{$netmask} = Net::Netmask->new2($netmask);
+                $cache{$netmask} = Net::Netmask->new2($netmask);
 
-            if (Net::Netmask::errstr()) {
-                warn "couldn't parse <$zone> as a netmask. error was <".Net::Netmask::errstr().
-                     ">. check your server settings";
+                if (Net::Netmask::errstr()) {
+                    warn "couldn't parse <$zone> as a netmask. error was <"
+                      . Net::Netmask::errstr() . ">. check your server settings";
+                }
             }
         }
     }
