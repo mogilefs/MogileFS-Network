@@ -136,6 +136,12 @@ sub replicate_to {
     @host_desp    = weighted_list(map { [$_, 100 * $_->percent_free] }
         splice(@host_desp, 0, 20));
 
+    # avoid ending up on potentially every single possible local network
+    # device due to a network split
+    if (@ideal == 0 && $already_on >= $min && @network_desp == 0) {
+        return TEMP_NO_ANSWER;
+    }
+
     my @desp = (@network_desp, @host_desp);
 
     return MogileFS::ReplicationRequest->new(

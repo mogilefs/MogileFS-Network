@@ -11,7 +11,7 @@ use MogileFS::Util qw(error_code);
 use MogileFS::ReplicationPolicy::MultipleNetworks;
 use MogileFS::Test;
 
-plan tests => 25;
+plan tests => 27;
 
 # need just the one, so we only have to stuff the cache once
 my $polclass = "MogileFS::ReplicationPolicy::MultipleNetworks";
@@ -128,6 +128,18 @@ is(rr("min=2  h1[d1=_ d2=X]$ad1 h2[d3=X d4=X]$ad2"),
 is(rr("min=2 h1[d1=X d2=X]$ad1 h2[d3=X d4=X]$ad2 h3[d5=_ d6=_]$ad3 h4[d7=_ d8=_]$ad4"),
    "ideal(5,6,7,8)", "more than min hosts, but all on one network");
 
+is(rr("min=4 h1[d1=X d5=_]$ad1 h2[d2=X d6=_]$ad2 " .
+      "h3=alive:unreachable[d3=_]$ad3 " .
+      "h4=alive:unreachable[d4=_]$ad4"),
+      'desperate(5,6)',
+      'copy locally if only one network is reachable');
+
+is(rr("min=4 h1[d1=X d5=X d7=_]$ad1 h2[d2=X d6=X d8=_]$ad2 " .
+      "h3=alive:unreachable[d3=_]$ad3 " .
+      "h4=alive:unreachable[d4=_]$ad4"),
+      'temp_fail',
+      'avoid overreplicating if we meet min during network failure');
+
 # mess with netmasks
 $pol->stuff_cache('146.101.246.2'  , Net::Netmask->new('146.101.246.0/24'));
 $pol->stuff_cache('146.101.142.130', Net::Netmask->new('146.101.142.0/24'));
@@ -160,6 +172,7 @@ sub rr {
     while ($state =~ s/\bh(\d+)(?:=(.+?))?\[(.+?)\](#\d+\.\d+\.\d+\.\d+\.?#)?//) {
         my ($n, $opts, $devstr, $ip) = ($1, $2, $3, $4);
         $opts ||= "";
+        my $obstate = "reachable";
         die "dup host $n" if $hosts->{$n};
 
 #        print "1 2 3 4 : <<$1>> <<$2>> <<$3>> <<$4>>\n";
@@ -171,8 +184,12 @@ sub rr {
             $extras{hostip} = $ip;
         }
 
+        if ($opts =~ s/:(\w+)\z//) {
+            $obstate = $1;
+        }
+
         my $h = $hosts->{$n} = $hfac->set({ hostid => $n,
-            status => ($opts || "alive"), observed_state => "reachable",
+            status => ($opts || "alive"), observed_state => $obstate,
             hostname => $n, %extras });
 
 
