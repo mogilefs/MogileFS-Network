@@ -25,6 +25,7 @@ use warnings;
 use Net::Netmask;
 use Net::Patricia;
 use MogileFS::Config;
+use IO::Socket::INET;
 
 our $VERSION = "0.06";
 
@@ -34,6 +35,10 @@ my $trie = Net::Patricia->new(); # Net::Patricia object used for cache and looku
 my $next_reload = 0;             # Epoch time at or after which the trie expires and must be regenerated.
 my $has_cached = MogileFS::Config->can('server_setting_cached');
 
+my $self_ip; # the external-facing IP of this host
+my $local_trie = Net::Patricia->new();
+$local_trie->add_string("127.0.0.0/8", 1);
+
 sub zone_for_ip {
     my $class = shift;
     my $ip = shift;
@@ -42,7 +47,11 @@ sub zone_for_ip {
 
     check_cache();
 
-    return $trie->match_string($ip);
+    my $rv = $trie->match_string($ip);
+    if (!$rv && $local_trie->match_string($ip)) {
+        $rv = $trie->match_string($self_ip);
+    }
+    return $rv;
 }
 
 sub check_cache {
@@ -86,6 +95,16 @@ sub check_cache {
         }
 
         $trie->add_string("$netmask", $zone);
+    }
+
+
+    # grab the our external address, no getifaddrs(3) support in Perl, yet.
+    my $sock = IO::Socket::INET->new(Proto => 'udp',
+                                     PeerAddr => '10.0.0.1',
+                                     PeerPort => 1);
+    if ($sock) {
+        $self_ip = $sock->sockhost;
+        $sock->close;
     }
 
     my $interval = get_setting("network_reload_interval") || DEFAULT_RELOAD_INTERVAL;
